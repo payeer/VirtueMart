@@ -329,7 +329,7 @@ class plgVmPaymentPayeer extends vmPSPlugin
 			$currency = 'RUB';
 		}
 		
-        $amount = ceil($order['details']['BT']->order_total*100)/100;
+		$amount = number_format($order['details']['BT']->order_total, 2, '.', '');
         $virtuemart_order_id = VirtueMartModelOrders::getOrderIdByOrderNumber($order['details']['BT']->order_number);
         $desc = base64_encode($method->order_desc);
 
