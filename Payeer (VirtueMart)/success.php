@@ -8,7 +8,7 @@ $_REQUEST['oi'] = $_REQUEST['m_orderid'];
 	<input type="hidden" name="option" value="com_virtuemart">
 	<input type="hidden" name="view" value="pluginresponse">
 	<input type="hidden" name="task" value="pluginresponsereceived">
-	<input type="hidden" name="oi" value="<?php echo $_REQUEST['m_orderid']?>">
+	<input type="hidden" name="oi" value="<?php echo $_GET['m_orderid']; ?>">
 </form>
 <script>
 document.forms.fname.submit();

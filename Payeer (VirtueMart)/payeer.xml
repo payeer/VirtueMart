@@ -1,10 +1,10 @@
-<?xml version="1.0" encoding="UTF-8" ?>
+﻿<?xml version="1.0" encoding="UTF-8" ?>
 <install version="1.5" type="plugin" group="vmpayment" >
-    <name>Payeer Payment</name>
+    <name>Payeer</name>
     <creationDate>Jule 2014</creationDate>
-    <author>Devellight</author>
-    <authorUrl>http://devellight.ru</authorUrl>
-    <copyright>devellight.com</copyright>
+    <author></author>
+    <authorUrl></authorUrl>
+    <copyright></copyright>
     <license></license>
     <version>1.0.0</version>
     <description><![CDATA[Payeer - универсальная система приема платежей, поддерживающая массу известных платежных систем и переводов. ]]></description>
@@ -35,10 +35,9 @@
 	<param name="status_canceled" type="vmorderstate" scope="com_virtuemart" default="X" label="VMPAYMENT_PAYEER_STATUS_FAILED" description="VMPAYMENT_PAYEER_STATUS_FAILED_DESC" />
 	<param name="countries" type="vmcountries"  scope="com_virtuemart" default="" label="VMPAYMENT_STANDARD_COUNTRIES" description="VMPAYMENT_STANDARD_COUNTRIES_DESC"/>
 	<param name="payment_currency" type="vmacceptedcurrency" default="" label="VMPAYMENT_STANDARD_CURRENCY" description="VMPAYMENT_STANDARD_CURRENCY_DESC" />
+	<param name="order_desc" type="text" size="50" default="" label="VMPAYMENT_PAYEER_ORDER_DESCRIPTION" description="VMPAYMENT_PAYEER_ORDER_DESCRIPTION_DESC" />
 	<param name="ip_filter" type="text" size="50" default="" label="VMPAYMENT_PAYEER_IP_FILTER" description="VMPAYMENT_PAYEER_IP_FILTER_DESC" />
 	<param name="admin_email" type="text" size="50" default="" label="VMPAYMENT_PAYEER_ADMIN_EMAIL" description="VMPAYMENT_PAYEER_IP_ADMIN_EMAIL_DESC" />
-	<param name="status_url" type="text" size="50" default="" label="VMPAYMENT_PAYEER_STATUS_URL" description="VMPAYMENT_PAYEER_STATUS_URL_DESC" />
-	<param name="success_url" type="text" size="50" default="" label="VMPAYMENT_PAYEER_SUCCESS_URL" description="VMPAYMENT_PAYEER_SUCCESS_URL_DESC" />
-	<param name="fail_url" type="text" size="50" default="" label="VMPAYMENT_PAYEER_FAIL_URL" description="VMPAYMENT_PAYEER_FAIL_URL_DESC" />
+	<param name="log_file" type="text" size="50" default="" label="VMPAYMENT_PAYEER_LOGFILE" description="VMPAYMENT_PAYEER_LOGFILE_DESC" />
     </params>
 </install>

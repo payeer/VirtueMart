@@ -12,9 +12,11 @@ if (!class_exists('vmPSPlugin'))
 class plgVmPaymentPayeer extends vmPSPlugin
 {
     public static $_this = false;
+	
     function __construct(&$subject, $config)
     {
         parent::__construct($subject, $config);
+		
         $this->_loggable   = true;
         $this->tableFields = array_keys($this->getTableSQLFields());
         $varsToPush        = array(
@@ -54,6 +56,10 @@ class plgVmPaymentPayeer extends vmPSPlugin
                 '',
                 'char'
             ),
+			'order_desc' => array(
+                '',
+                'string'
+            ),
 			'ip_filter' => array(
                 '',
                 'string'
@@ -62,15 +68,7 @@ class plgVmPaymentPayeer extends vmPSPlugin
                 '',
                 'string'
             ),
-			'status_url' => array(
-                '',
-                'string'
-            ),
-			'success_url' => array(
-                '',
-                'string'
-            ),
-			'fail_url' => array(
+			'log_file' => array(
                 '',
                 'string'
             )
@@ -78,7 +76,6 @@ class plgVmPaymentPayeer extends vmPSPlugin
         
         $this->setConfigParameterable($this->_configTableFieldName, $varsToPush);
     }
-    
     
     protected function getVmPluginCreateTableSQL()
     {
@@ -154,6 +151,27 @@ class plgVmPaymentPayeer extends vmPSPlugin
 				$valid_ip = TRUE;
 			}
 			
+			$path_to_logfile = $method->log_file;
+			
+			$log_text = 
+				"--------------------------------------------------------\n".
+				"operation id		".$_POST["m_operation_id"]."\n".
+				"operation ps		".$_POST["m_operation_ps"]."\n".
+				"operation date		".$_POST["m_operation_date"]."\n".
+				"operation pay date	".$_POST["m_operation_pay_date"]."\n".
+				"shop				".$_POST["m_shop"]."\n".
+				"order id			".$_POST["m_orderid"]."\n".
+				"amount				".$_POST["m_amount"]."\n".
+				"currency			".$_POST["m_curr"]."\n".
+				"description		".base64_decode($_POST["m_desc"])."\n".
+				"status				".$_POST["m_status"]."\n".
+				"sign				".$_POST["m_sign"]."\n\n";
+						
+			if (!empty($path_to_logfile))
+			{	
+				file_put_contents($_SERVER['DOCUMENT_ROOT'] . $path_to_logfile, $log_text, FILE_APPEND);
+			}
+			
 			if ($_POST['m_sign'] == $sign_hash && $_POST['m_status'] == "success" && $valid_ip)
 			{
 				$lang = JFactory::getLanguage();
@@ -180,11 +198,12 @@ class plgVmPaymentPayeer extends vmPSPlugin
 				}
 				
 				$modelOrder = new VirtueMartModelOrders();
+				
 				ob_start();
 					$modelOrder->updateStatusForOneOrder($order_number, $order, false);
 				ob_end_clean();
-				echo $_POST['m_orderid']."|success";
-				exit;
+
+				exit($_POST['m_orderid'] . '|success');
 			}
 			else
 			{
@@ -194,27 +213,28 @@ class plgVmPaymentPayeer extends vmPSPlugin
 				
 				if ($_POST["m_sign"] != $sign_hash)
 				{
-					$message.=" - Do not match the digital signature\n";
+					$message .= " - Do not match the digital signature\n";
 				}
 				
 				if ($_POST['m_status'] != "success")
 				{
-					$message.=" The payment status is not success\n";
+					$message .= " The payment status is not success\n";
 				}
 				
 				if (!$valid_ip)
 				{
-					$message.=" - the ip address of the server is not trusted\n";
-					$message.="   trusted ip: ".$method->ip_filter."\n";
-					$message.="   ip of the current server: ".$_SERVER['REMOTE_ADDR']."\n";
+					$message .= " - the ip address of the server is not trusted\n";
+					$message .= "   trusted ip: " . $method->ip_filter . "\n";
+					$message .= "   ip of the current server: " . $_SERVER['REMOTE_ADDR'] . "\n";
 				}
 				
-				$message.="\n".$log_text;
+				$message .= "\n" . $log_text;
 				
-				$headers = "From: no-reply@".$_SERVER['HTTP_SERVER']."\r\nContent-type: text/plain; charset=utf-8 \r\n";
+				$headers = "From: no-reply@" . $_SERVER['HTTP_SERVER'] . "\r\nContent-type: text/plain; charset=utf-8 \r\n";
 				mail($to, $subject, $message, $headers);
 			}
-			echo $_POST['m_orderid']."|error";
+
+			exit ($_POST['m_orderid'] . '|error');
 		}
     }
 	
@@ -232,12 +252,14 @@ class plgVmPaymentPayeer extends vmPSPlugin
 			{
                 require(JPATH_VM_SITE . DS . 'helpers' . DS . 'cart.php');
 			}
+			
             $cart = VirtueMartCart::getCart();
             
             if (!class_exists('VirtueMartModelOrders'))
 			{
                 require(JPATH_VM_ADMINISTRATOR . DS . 'models' . DS . 'orders.php');
 			}
+			
             $cart->emptyCart();
         }
         return true;
@@ -301,14 +323,15 @@ class plgVmPaymentPayeer extends vmPSPlugin
 		$m_url = $method->merchant_url;
 		
         $currency = strtoupper($db->loadResult());
+		
         if ($currency == 'RUR')
-          $currency = 'RUB';
-        $amount = ceil($order['details']['BT']->order_total*100)/100;
+		{
+			$currency = 'RUB';
+		}
+		
+		$amount = number_format($order['details']['BT']->order_total, 2, '.', '');
         $virtuemart_order_id = VirtueMartModelOrders::getOrderIdByOrderNumber($order['details']['BT']->order_number);
-        $desc = base64_encode('Payment order No. '.$order['details']['BT']->order_number);
-        $success_url = $method->status_url;
-		$result_url = $method->success_url;
-        $fail_url = $method->fail_url;
+        $desc = base64_encode($method->order_desc);
 
 		$m_key = $method->secret_key;
 		$arHash = array(
@@ -337,11 +360,11 @@ class plgVmPaymentPayeer extends vmPSPlugin
 		$html .= '<input type="hidden" name="m_curr" value="' . $currency . '">';
 		$html .= '<input type="hidden" name="m_desc" value="' . $desc . '">';
 		$html .= '<input type="hidden" name="m_sign" value="' . $sign . '">';
-		$html .= '<input type="submit" name="m_process" value="send" />';
 		$html .= '</form>';
         $html .= '<script type="text/javascript">';
         $html .= 'document.forms.vm_payeer_form.submit();';
         $html .= '</script>';
+		
         return $this->processConfirmedOrderPaymentResponse(true, $cart, $order, $html, $this->renderPluginName($method, $order), 'P');
     }
     
