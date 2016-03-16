@@ -17,61 +17,21 @@ class plgVmPaymentPayeer extends vmPSPlugin
     {
         parent::__construct($subject, $config);
 		
-        $this->_loggable   = true;
+        $this->_loggable = true;
         $this->tableFields = array_keys($this->getTableSQLFields());
-        $varsToPush        = array(
-            'payment_logos' => array(
-                '',
-                'char'
-            ),
-            'countries' => array(
-                0,
-                'int'
-            ),
-            'payment_currency' => array(
-                0,
-                'int'
-            ),
-			'merchant_url' => array(
-                '//payeer.com/merchant/',
-                'string'
-            ),
-            'merchant_id' => array(
-                '',
-                'string'
-            ),
-            'secret_key' => array(
-                '',
-                'string'
-            ),
-            'status_success' => array(
-                '',
-                'char'
-            ),
-            'status_pending' => array(
-                '',
-                'char'
-            ),
-            'status_canceled' => array(
-                '',
-                'char'
-            ),
-			'order_desc' => array(
-                '',
-                'string'
-            ),
-			'ip_filter' => array(
-                '',
-                'string'
-            ),
-			'admin_email' => array(
-                '',
-                'string'
-            ),
-			'log_file' => array(
-                '',
-                'string'
-            )
+        $varsToPush = array(
+            'payment_logos' => array('', 'char'),
+            'countries' => array(0, 'int'),
+            'payment_currency' => array(0, 'int'),
+			'merchant_url' => array('https://payeer.com/merchant/', 'string'),
+            'merchant_id' => array('', 'string'),
+            'secret_key' => array('', 'string'),
+            'status_success' => array('', 'char'),
+            'status_pending' => array('', 'char'),
+            'status_canceled' => array('', 'char'),
+			'ip_filter' => array('', 'string'),
+			'admin_email' => array('', 'string'),
+			'log_file' => array('', 'string')
         );
         
         $this->setConfigParameterable($this->_configTableFieldName, $varsToPush);
@@ -99,143 +59,160 @@ class plgVmPaymentPayeer extends vmPSPlugin
     
 	public function plgVmOnPaymentNotification()
     {
-		if (isset($_POST['m_operation_id']) && isset($_POST['m_sign']))
+		if (!class_exists ('VirtueMartModelOrders')) 
 		{
-			$payment = $this->getDataByOrderId($_POST['m_orderid']);
-			$order_number = $payment->order_number;
+			require(JPATH_VM_ADMINISTRATOR . DS . 'models' . DS . 'orders.php');
+		}
+
+		$payeer_data = JRequest::get('post');
+		
+		if (isset($payeer_data['m_operation_id']) && isset($payeer_data['m_sign']))
+		{
+			$err = false;
+			$message = '';
+			$payment = $this->getDataByOrderId($payeer_data['m_orderid']);
 			$method = $this->getVmPluginMethod($payment->virtuemart_paymentmethod_id);
-			$status = $method->status_success;
-			$m_key = $method->secret_key;
-			$arHash = array(
-				$_POST['m_operation_id'],
-				$_POST['m_operation_ps'],
-				$_POST['m_operation_date'],
-				$_POST['m_operation_pay_date'],
-				$_POST['m_shop'],
-				$_POST['m_orderid'],
-				$_POST['m_amount'],
-				$_POST['m_curr'],
-				$_POST['m_desc'],
-				$_POST['m_status'],
-				$m_key
-			);
 			
-			$sign_hash = strtoupper(hash('sha256', implode(":", $arHash)));
-			
-			$list_ip_str = str_replace(' ', '', $method->ip_filter);
-			
-			if ($list_ip_str != '') 
-			{
-				$list_ip = explode(',', $list_ip_str);
-				$this_ip = $_SERVER['REMOTE_ADDR'];
-				$this_ip_field = explode('.', $this_ip);
-				$list_ip_field = array();
-				$i = 0;
-				$valid_ip = FALSE;
-				foreach ($list_ip as $ip)
-				{
-					$ip_field[$i] = explode('.', $ip);
-					if ((($this_ip_field[0] ==  $ip_field[$i][0]) or ($ip_field[$i][0] == '*')) and
-						(($this_ip_field[1] ==  $ip_field[$i][1]) or ($ip_field[$i][1] == '*')) and
-						(($this_ip_field[2] ==  $ip_field[$i][2]) or ($ip_field[$i][2] == '*')) and
-						(($this_ip_field[3] ==  $ip_field[$i][3]) or ($ip_field[$i][3] == '*')))
-						{
-							$valid_ip = TRUE;
-							break;
-						}
-					$i++;
-				}
-			}
-			else
-			{
-				$valid_ip = TRUE;
-			}
-			
-			$path_to_logfile = $method->log_file;
+			// запись логов
 			
 			$log_text = 
-				"--------------------------------------------------------\n".
-				"operation id		".$_POST["m_operation_id"]."\n".
-				"operation ps		".$_POST["m_operation_ps"]."\n".
-				"operation date		".$_POST["m_operation_date"]."\n".
-				"operation pay date	".$_POST["m_operation_pay_date"]."\n".
-				"shop				".$_POST["m_shop"]."\n".
-				"order id			".$_POST["m_orderid"]."\n".
-				"amount				".$_POST["m_amount"]."\n".
-				"currency			".$_POST["m_curr"]."\n".
-				"description		".base64_decode($_POST["m_desc"])."\n".
-				"status				".$_POST["m_status"]."\n".
-				"sign				".$_POST["m_sign"]."\n\n";
-						
-			if (!empty($path_to_logfile))
-			{	
-				file_put_contents($_SERVER['DOCUMENT_ROOT'] . $path_to_logfile, $log_text, FILE_APPEND);
+			"--------------------------------------------------------\n" .
+			"operation id		" . $payeer_data['m_operation_id'] . "\n" .
+			"operation ps		" . $payeer_data['m_operation_ps'] . "\n" .
+			"operation date		" . $payeer_data['m_operation_date'] . "\n" .
+			"operation pay date	" . $payeer_data['m_operation_pay_date'] . "\n" .
+			"shop				" . $payeer_data['m_shop'] . "\n" .
+			"order id			" . $payeer_data['m_orderid'] . "\n" .
+			"amount				" . $payeer_data['m_amount'] . "\n" .
+			"currency			" . $payeer_data['m_curr'] . "\n" .
+			"description		" . base64_decode($payeer_data['m_desc']) . "\n" .
+			"status				" . $payeer_data['m_status'] . "\n" .
+			"sign				" . $payeer_data['m_sign'] . "\n\n";
+			
+			$log_file = $method->log_file;
+			
+			if (!empty($log_file))
+			{
+				file_put_contents($_SERVER['DOCUMENT_ROOT'] . $log_file, $log_text, FILE_APPEND);
 			}
 			
-			if ($_POST['m_sign'] == $sign_hash && $_POST['m_status'] == "success" && $valid_ip)
+			// проверка цифровой подписи и ip
+
+			$sign_hash = strtoupper(hash('sha256', implode(":", array(
+				$payeer_data['m_operation_id'],
+				$payeer_data['m_operation_ps'],
+				$payeer_data['m_operation_date'],
+				$payeer_data['m_operation_pay_date'],
+				$payeer_data['m_shop'],
+				$payeer_data['m_orderid'],
+				$payeer_data['m_amount'],
+				$payeer_data['m_curr'],
+				$payeer_data['m_desc'],
+				$payeer_data['m_status'],
+				$method->secret_key
+			))));
+			
+			$valid_ip = true;
+			$sIP = str_replace(' ', '', $method->ip_filter);
+			
+			if (!empty($sIP))
 			{
-				$lang = JFactory::getLanguage();
-				$filename = 'com_virtuemart';
-				$lang->load($filename, JPATH_ADMINISTRATOR);
-				
-				if (!class_exists('VirtueMartModelOrders'))
+				$arrIP = explode('.', $_SERVER['REMOTE_ADDR']);
+				if (!preg_match('/(^|,)(' . $arrIP[0] . '|\*{1})(\.)' .
+				'(' . $arrIP[1] . '|\*{1})(\.)' .
+				'(' . $arrIP[2] . '|\*{1})(\.)' .
+				'(' . $arrIP[3] . '|\*{1})($|,)/', $sIP))
 				{
-					require(JPATH_VM_ADMINISTRATOR . DS . 'models' . DS . 'orders.php');
+					$valid_ip = false;
 				}
+			}
+			
+			if (!$valid_ip)
+			{
+				$message .= " - the ip address of the server is not trusted\n" .
+				"   trusted ip: " . $sIP . "\n" .
+				"   ip of the current server: " . $_SERVER['REMOTE_ADDR'] . "\n";
+				$err = true;
+			}
+
+			if ($payeer_data['m_sign'] != $sign_hash)
+			{
+				$message .= " - do not match the digital signature\n";
+				$err = true;
+			}
+			
+			if (!$err)
+			{
+				// загрузка заказа
 				
+				$order_number = $payment->order_number;
 				$virtuemart_order_id = VirtueMartModelOrders::getOrderIdByOrderNumber($order_number);
-				$order['order_status']        = $status;
 				$order['virtuemart_order_id'] = $payment->virtuemart_order_id;
 				$order['virtuemart_user_id'] = $payment->virtuemart_user_id;
-				$order['order_total'] = $_POST['m_amount'];
-				$order['customer_notified']   = 0;
-				$order['virtuemart_vendor_id']   = 1;
-				$order['comments']            = JTExt::sprintf('VMPAYMENT_PAYEER_PAYMENT_CONFIRMED', $order_number);
+				$order['order_total'] = $payeer_data['m_amount'];
+				$order['customer_notified'] = 0;
+				$order['virtuemart_vendor_id'] = 1;
+				$order['comments'] = JTExt::sprintf('VMPAYMENT_PAYEER_PAYMENT_CONFIRMED', $order_number);
+				$modelOrder = new VirtueMartModelOrders();
+				$order_curr = ($payment->payment_currency == 'RUR') ? 'RUB' : $payment->payment_currency;
+				$order_amount = number_format($payment->payment_order_total, 2, '.', '');
 				
-				if (!class_exists('VirtueMartModelOrders'))
+				// проверка суммы и валюты
+			
+				if ($payeer_data['m_amount'] != $order_amount)
 				{
-					require(JPATH_VM_ADMINISTRATOR . DS . 'models' . DS . 'orders.php');
+					$message .= " - wrong amount\n";
+					$err = true;
+				}
+
+				if ($payeer_data['m_curr'] != $order_curr)
+				{
+					$message .= " - wrong currency\n";
+					$err = true;
 				}
 				
-				$modelOrder = new VirtueMartModelOrders();
+				// проверка статуса
 				
-				ob_start();
-					$modelOrder->updateStatusForOneOrder($order_number, $order, false);
-				ob_end_clean();
+				if (!$err)
+				{
+					switch ($payeer_data['m_status'])
+					{
+						case 'success':
+							$order['order_status'] = $method->status_success;
+							$modelOrder->updateStatusForOneOrder($virtuemart_order_id, $order, true);
+							break;
+							
+						default:
+							$message .= " the payment status is not success\n";
+							$order['order_status'] = $method->status_canceled;
+							$modelOrder->updateStatusForOneOrder($virtuemart_order_id, $order, true);
+							$err = true;
+							break;
+					}
+				}
+			}
+			
+			if ($err)
+			{
+				$to = $method->admin_email;
 
-				exit($_POST['m_orderid'] . '|success');
+				if (!empty($to))
+				{
+					$message = "Failed to make the payment through the system Payeer for the following reasons:\n\n" . $message . "\n" . $log_text;
+					$headers = "From: no-reply@" . $_SERVER['HTTP_HOST'] . "\r\n" . 
+					"Content-type: text/plain; charset=utf-8 \r\n";
+					mail($to, "Error payment", $message, $headers);
+				}
+				
+				echo $payeer_data['m_orderid'] . '|error';
 			}
 			else
 			{
-				$to = $method->admin_email;
-				$subject = "Error payment";
-				$message = "Failed to make the payment through the system Payeer for the following reasons:\n\n";
-				
-				if ($_POST["m_sign"] != $sign_hash)
-				{
-					$message .= " - Do not match the digital signature\n";
-				}
-				
-				if ($_POST['m_status'] != "success")
-				{
-					$message .= " The payment status is not success\n";
-				}
-				
-				if (!$valid_ip)
-				{
-					$message .= " - the ip address of the server is not trusted\n";
-					$message .= "   trusted ip: " . $method->ip_filter . "\n";
-					$message .= "   ip of the current server: " . $_SERVER['REMOTE_ADDR'] . "\n";
-				}
-				
-				$message .= "\n" . $log_text;
-				
-				$headers = "From: no-reply@" . $_SERVER['HTTP_SERVER'] . "\r\nContent-type: text/plain; charset=utf-8 \r\n";
-				mail($to, $subject, $message, $headers);
+				echo $payeer_data['m_orderid'] . '|success';
 			}
-
-			exit ($_POST['m_orderid'] . '|error');
 		}
+		
+		return true;
     }
 	
 	function plgVmOnPaymentResponseReceived()
@@ -331,7 +308,7 @@ class plgVmPaymentPayeer extends vmPSPlugin
 		
 		$amount = number_format($order['details']['BT']->order_total, 2, '.', '');
         $virtuemart_order_id = VirtueMartModelOrders::getOrderIdByOrderNumber($order['details']['BT']->order_number);
-        $desc = base64_encode($method->order_desc);
+        $desc = base64_encode($order['details']['BT']->customer_note);
 
 		$m_key = $method->secret_key;
 		$arHash = array(
